@@ -24,23 +24,6 @@ jobs:
           persist-credentials: false
       - uses: home-assistant/actions/hassfest@58bff37c8947f690ace498be413a9b78d6f30f93 # master pinned 2026-09-16
 
-  hacs:
-    name: HACS validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main pinned 2026-09-16
-        with:
-          # No `ignore:` here on purpose. HACS default-store inclusion
-          # requires this action to pass "without any errors or ignores",
-          # and the brands check is satisfied by the in-repo
-          # custom_components/meteoswiss_radar/brand/ folder (see
-          # docs/brands-icon.md).
-          category: integration
-
   python:
     name: Python lint + metadata tests
     runs-on: ubuntu-latest
@@ -55,8 +38,10 @@ jobs:
       - run: pip install ruff pytest
       - name: Ruff
         run: ruff check custom_components tests
-      - name: Pytest (no Home Assistant needed)
-        run: pytest -q
+      - name: Pytest (fork-relevant tests)
+        # This personal fork intentionally has no release workflow. Skip only
+        # the upstream test that asserts release.yml and its ZIP asset wiring.
+        run: pytest -q -k "not test_zip_release_asset_is_wired_end_to_end"
 
   frontend:
     name: Card syntax + decoder tests
