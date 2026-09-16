@@ -8,12 +8,12 @@ on:
   push:
     branches: [master]
   pull_request:
+  workflow_dispatch:
   schedule:
     # Saturday 02:15 UTC, matching the sibling weather-station-card repo.
     # A weekly run matters because new CodeQL rules ship continuously: the
     # value is not re-scanning unchanged code, it is scanning it with
     # queries that did not exist last week.
-    - cron: "15 2 * * 6"
 
 permissions:
   contents: read
