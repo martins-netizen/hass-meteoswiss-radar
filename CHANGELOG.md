@@ -8,6 +8,12 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ## [Unreleased]
 
+### Added
+
+- A configurable radar rain threshold under *Configure → Radar rain detection*.
+  The default remains 1 mm/h; 0 includes the weakest precipitation band for
+  sensitive awnings, with a higher risk of false alarms. Requires restart
+
 ## [v0.16.0] — 2026-10-21
 
 ### Added

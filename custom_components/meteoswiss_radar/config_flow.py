@@ -23,15 +23,18 @@ from homeassistant.core import callback
 
 from .const import (
     DOMAIN,
+    MAX_RAIN_THRESHOLD_MM_H,
     OPT_NOWCAST_ENABLED,
     OPT_PROTECTION_MIN_HOLD,
+    OPT_RAIN_THRESHOLD,
     OPT_WEATHER_ENTITY,
 )
 
-# The dialog groups the two nowcast refinements under headed sections so each
+# The dialog groups the nowcast refinements under headed sections so each
 # reads as part of the feature it tunes. Sections only shape the form: the
 # submitted values are flattened back so the stored options keep the flat keys
 # every reader in __init__ expects.
+SECTION_DETECTION = "rain_detection"
 SECTION_PROTECTION = "rain_protection"
 SECTION_FORECAST = "forecast"
 
@@ -81,6 +84,7 @@ class MeteoSwissRadarOptionsFlow(OptionsFlow):
             forecast_weather_entity,
             nowcast_entities_enabled,
             protection_min_hold_minutes,
+            rain_threshold_mm_h,
         )
 
         # Resolve the entry from the flow handler rather than `self.config_entry`:
@@ -100,6 +104,25 @@ class MeteoSwissRadarOptionsFlow(OptionsFlow):
                         OPT_NOWCAST_ENABLED,
                         default=nowcast_entities_enabled(self.hass, entry),
                     ): bool,
+                    vol.Required(SECTION_DETECTION): section(
+                        vol.Schema(
+                            {
+                                vol.Required(
+                                    OPT_RAIN_THRESHOLD,
+                                    default=rain_threshold_mm_h(entry),
+                                ): NumberSelector(
+                                    NumberSelectorConfig(
+                                        min=0,
+                                        max=MAX_RAIN_THRESHOLD_MM_H,
+                                        step=0.1,
+                                        unit_of_measurement="mm/h",
+                                        mode=NumberSelectorMode.BOX,
+                                    )
+                                ),
+                            }
+                        ),
+                        {"collapsed": False},
+                    ),
                     vol.Required(SECTION_PROTECTION): section(
                         vol.Schema(
                             {
@@ -146,7 +169,9 @@ def _flatten(user_input: dict[str, Any]) -> dict[str, Any]:
     """
     options: dict[str, Any] = {}
     for key, value in user_input.items():
-        if key in (SECTION_PROTECTION, SECTION_FORECAST) and isinstance(value, dict):
+        if key in (
+            SECTION_DETECTION, SECTION_PROTECTION, SECTION_FORECAST
+        ) and isinstance(value, dict):
             options.update(value)
         else:
             options[key] = value
