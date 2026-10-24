@@ -8,6 +8,13 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ## [Unreleased]
 
+### Security
+
+- Harden developer tooling: verify pinned Python CI dependencies with hashes,
+  disable npm installation hooks, and require explicit icon replacement while
+  rejecting parent-traversal and symlink outputs. Developer tooling only; no
+  Home Assistant restart or integration update required.
+
 ## [v0.14.0] — 2026-08-25
 
 ### Changed

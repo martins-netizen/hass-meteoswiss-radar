@@ -96,6 +96,9 @@ decisions — see [FORMAT.md](FORMAT.md) and [docs/adr/](docs/adr/).
 
 ## Contributing
 
+For verified CI dependencies, safe icon regeneration, and Sonar analysis
+configuration, see [Developer tooling security maintenance](docs/security-maintenance.md).
+
 Issues and PRs welcome. [AGENTS.md](AGENTS.md) has the working agreement, and
 `npm test` / `python -m pytest -q` run the two suites.
 
