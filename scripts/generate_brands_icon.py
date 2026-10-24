@@ -27,11 +27,12 @@ masking).
 Usage::
 
     pip install Pillow
-    python scripts/generate_brands_icon.py
+    python scripts/generate_brands_icon.py --overwrite
 
 Writes into the shipped ``brand/`` folder by default; pass ``--out`` to
-render somewhere else for inspection. Requires network access and
-Pillow. Standard library otherwise.
+render somewhere else for inspection. Existing icons require explicit
+``--overwrite``. Parent traversal and symlink outputs are rejected.
+Requires network access and Pillow. Standard library otherwise.
 """
 
 from __future__ import annotations
@@ -39,8 +40,10 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import re
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -96,6 +99,55 @@ def upscale_request(url: str, size: int) -> str:
     return re.sub(r"/\d+x\d+bb\.(jpg|png)$", f"/{size}x{size}bb.\\1", url)
 
 
+def prepare_output_dir(value: str, *, overwrite: bool = False) -> Path:
+    """Validate the operator's output choice before fetching any artwork."""
+    path = Path(value).expanduser()
+    if ".." in path.parts:
+        raise ValueError("--out must not contain '..'; use an explicit directory")
+    if path.is_symlink():
+        raise ValueError("--out must not be a symbolic link")
+    out_dir = path.resolve()
+    if out_dir.exists() and not out_dir.is_dir():
+        raise ValueError("--out must be a directory")
+    for filename, _ in OUTPUTS:
+        target = out_dir / filename
+        if target.is_symlink():
+            raise ValueError(f"Refusing symbolic-link output: {target}")
+        if target.exists() and (not overwrite or not target.is_file()):
+            raise ValueError(
+                f"Refusing existing output: {target}; "
+                "use --overwrite only for regular icon files"
+            )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
+
+
+def write_icons(master, out_dir: Path, *, resample, overwrite: bool = False) -> None:
+    """Publish complete PNGs without following or truncating existing targets."""
+    # Recheck all targets before writing either image. Exclusive publication
+    # also protects a target created after this check, including a symlink.
+    out_dir = prepare_output_dir(str(out_dir), overwrite=overwrite)
+    for filename, edge in OUTPUTS:
+        target = out_dir / filename
+        image = master.resize((edge, edge), resample)
+        temporary = tempfile.NamedTemporaryFile(
+            dir=out_dir, prefix=".radar-icon-", suffix=".png", delete=False
+        )
+        temporary_path = Path(temporary.name)
+        try:
+            with temporary:
+                image.save(temporary, "PNG", optimize=True)
+            if overwrite:
+                # Replace the directory entry, not its inode: a hard-linked
+                # destination must not modify the other link's contents.
+                os.replace(temporary_path, target)
+            else:
+                os.link(temporary_path, target)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+        print(f"Wrote {target} ({edge}x{edge})")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -104,11 +156,21 @@ def main() -> int:
         help=f"Output directory (default: {BRAND_DIR})",
     )
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Explicitly replace existing regular icon files (never symlinks)",
+    )
+    parser.add_argument(
         "--source-url",
         default=None,
         help="Override the App Store artwork URL (skips the iTunes lookup)",
     )
     args = parser.parse_args()
+
+    try:
+        out_dir = prepare_output_dir(args.out, overwrite=args.overwrite)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
 
     try:
         from PIL import Image
@@ -127,13 +189,12 @@ def main() -> int:
             "distort a logo. Inspect the source manually."
         )
 
-    out_dir = Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for filename, edge in OUTPUTS:
-        img = master.resize((edge, edge), Image.LANCZOS)
-        path = out_dir / filename
-        img.save(path, "PNG", optimize=True)
-        print(f"Wrote {path} ({edge}x{edge})")
+    try:
+        write_icons(
+            master, out_dir, resample=Image.LANCZOS, overwrite=args.overwrite
+        )
+    except (OSError, ValueError) as error:
+        raise SystemExit(f"Cannot write brand icons: {error}") from None
 
     print(
         "\nDone. Commit the result if you rendered into the shipped brand "

@@ -61,12 +61,20 @@ automatically — it is not a build step.
 
 ```sh
 pip install Pillow
-python scripts/generate_brands_icon.py
+python scripts/generate_brands_icon.py --overwrite
 ```
 
 It writes straight into `custom_components/meteoswiss_radar/brand/`;
 review the result visually and commit it. Pass `--out <dir>` to render
 somewhere else for inspection first.
+
+Existing icon files require explicit `--overwrite`. Without it, the script
+refuses to replace either output, including a file created while rendering.
+An output directory containing `..`, a symlink output directory, and symlink
+icon files are rejected, even with `--overwrite`. Use an explicit directory
+for previews. Images are rendered to temporary files and then published;
+replacement does not truncate hard-linked files. This is a local developer
+tool, not a Home Assistant service or an automated build step.
 
 Verified end-to-end on 2026-08-25: the iTunes lookup resolves
 `ch.admin.meteoswiss`, and the script writes two valid square, opaque RGB
