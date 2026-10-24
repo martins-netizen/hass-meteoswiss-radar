@@ -1189,14 +1189,25 @@ def test_async_setup_entry_is_idempotent() -> None:
     hass.http.async_register_static_paths = AsyncMock()
     entry = MagicMock()
 
-    _run(async_setup_entry(hass, entry))
+    assert _run(async_setup_entry(hass, entry)) is True
     first_count = hass.http.register_view.call_count
 
-    _run(async_setup_entry(hass, entry))
+    assert _run(async_setup_entry(hass, entry)) is True
     second_count = hass.http.register_view.call_count
 
     assert first_count == 3, "expected three view registrations on first setup"
     assert second_count == 3, "second setup must not register views again"
+
+
+def test_setup_registration_failure_is_not_reported_as_success() -> None:
+    hass = MagicMock()
+    hass.data = {}
+    hass.http.register_view.side_effect = RuntimeError("route registration failed")
+
+    with pytest.raises(RuntimeError, match="route registration failed"):
+        _run(async_setup_entry(hass, MagicMock()))
+
+    assert not hass.data.get(_integration._ROUTES_KEY)
 
 
 def test_reload_reregisters_card_resource(monkeypatch: pytest.MonkeyPatch) -> None:

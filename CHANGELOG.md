@@ -8,6 +8,14 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ## [Unreleased]
 
+### Fixed
+
+- Handle rejected radar-card initialization and custom-element registration
+  without unhandled Promise rejections. Simplify config-entry setup while
+  preserving successful setup and reload behavior. Requires restart.
+
+Under the hood: use Bash conditional expressions in the optional issue selector.
+
 ### Security
 
 - Harden developer tooling: verify pinned Python CI dependencies with hashes,

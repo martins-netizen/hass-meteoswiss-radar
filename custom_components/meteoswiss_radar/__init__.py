@@ -436,17 +436,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     homeassistant.reload_config_entry) leaves every dashboard without the card
     until a full HA restart (issue #67).
     """
-    if hass.data.get(_ROUTES_KEY):
-        _register_card_resource(hass)
-        return True
-
-    hass.http.register_view(MeteoSwissRadarProxyView(hass))
-    hass.http.register_view(MeteoSwissRadarCardView())
-    # A view (not a static mount): the {tag} in the vendor URL must map to the
-    # same on-disk files regardless of which version stamped it, so old and new
-    # cards both resolve across an upgrade or a restart-free JS update (#70).
-    hass.http.register_view(MeteoSwissRadarVendorView())
-    hass.data[_ROUTES_KEY] = True
+    if not hass.data.get(_ROUTES_KEY):
+        hass.http.register_view(MeteoSwissRadarProxyView(hass))
+        hass.http.register_view(MeteoSwissRadarCardView())
+        # A view (not a static mount): the {tag} in the vendor URL must map to the
+        # same on-disk files regardless of which version stamped it, so old and new
+        # cards both resolve across an upgrade or a restart-free JS update (#70).
+        hass.http.register_view(MeteoSwissRadarVendorView())
+        hass.data[_ROUTES_KEY] = True
     _register_card_resource(hass)
     return True
 
