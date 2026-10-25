@@ -682,7 +682,9 @@ class MeteoSwissRadarCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._maybeInit();
+    this._maybeInit().catch((err) => {
+      console.warn("meteoswiss-radar-card: initialization failed:", err);
+    });
   }
 
   connectedCallback() {
@@ -698,7 +700,11 @@ class MeteoSwissRadarCard extends HTMLElement {
         this._playModeBeforeDetach = null;
       }
     }
-    this._maybeInit(); // rebuilds from scratch if a teardown already fired
+    // Rebuild from scratch if a teardown already fired. HA does not await
+    // lifecycle callbacks, so unexpected initialization failures need a handler.
+    this._maybeInit().catch((err) => {
+      console.warn("meteoswiss-radar-card: initialization failed:", err);
+    });
     if (this._map) requestAnimationFrame(() => this._map.invalidateSize());
     if (this._initialized && !this._refreshTimer) this._startRefreshTimer();
   }
@@ -2314,7 +2320,9 @@ function defineWhenRegistryReady() {
     Promise.race([
       customElements.whenDefined("home-assistant"),
       new Promise((resolve) => setTimeout(resolve, 8000)),
-    ]).then(defineCard);
+    ]).then(defineCard).catch((err) => {
+      console.warn("meteoswiss-radar-card: registration failed:", err);
+    });
   } else if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", defineWhenRegistryReady, {
       once: true,
