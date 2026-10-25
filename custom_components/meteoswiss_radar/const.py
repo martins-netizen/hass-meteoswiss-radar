@@ -10,6 +10,11 @@ DATA_NOWCAST = f"{DOMAIN}_nowcast_data"
 # weather entity, and vice versa").
 OPT_NOWCAST_ENABLED = "nowcast_enabled"
 
+# Radar intensity is banded; 0 includes the weakest precipitation contour.
+OPT_RAIN_THRESHOLD = "rain_threshold_mm_h"
+# Highest band lower bound in FORMAT.md and tests/fixtures/animation.json.
+MAX_RAIN_THRESHOLD_MM_H = 60.0
+
 # Minimum minutes the rain-protection signal stays on once raised (#212).
 # Whatever it drives is usually a motor, and a shower clipping the location
 # otherwise cycles it within minutes.

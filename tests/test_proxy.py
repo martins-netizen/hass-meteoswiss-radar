@@ -1828,3 +1828,85 @@ def test_unusable_weather_entity_reads_as_radar_only(stored: object) -> None:
 
 def test_missing_weather_entity_option_reads_as_radar_only() -> None:
     assert _integration.forecast_weather_entity(_entry_with_options({})) is None
+
+
+# ---------------------------------------------------------------------------
+# Tests: configurable radar threshold (ADR-0011)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("stored", [0, 0.0, 0.5, 1, 2.5, 60])
+def test_rain_threshold_preserves_numeric_options(stored) -> None:
+    entry = _entry_with_options({"rain_threshold_mm_h": stored})
+    assert _integration.rain_threshold_mm_h(entry) == float(stored)
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [None, True, False, "0", -0.1, 60.1, float("nan"), float("inf"), {}, 10**400],
+)
+def test_invalid_rain_threshold_keeps_released_default(stored) -> None:
+    entry = _entry_with_options({"rain_threshold_mm_h": stored})
+    assert _integration.rain_threshold_mm_h(entry) == 1.0
+
+
+def test_missing_rain_threshold_keeps_released_default() -> None:
+    assert _integration.rain_threshold_mm_h(_entry_with_options({})) == 1.0
+    assert _integration.rain_threshold_mm_h(MagicMock()) == 1.0
+
+
+def test_options_flow_preserves_zero_threshold_in_nested_section() -> None:
+    flow = MeteoSwissRadarOptionsFlow()
+    flow.async_create_entry = lambda **kwargs: kwargs
+    result = _run(flow.async_step_init({
+        "nowcast_enabled": True,
+        "rain_detection": {"rain_threshold_mm_h": 0.0},
+        "rain_protection": {"protection_min_hold_minutes": 45.0},
+        "forecast": {"weather_entity_id": "weather.home"},
+    }))
+    assert result["data"] == {
+        "nowcast_enabled": True,
+        "rain_threshold_mm_h": 0.0,
+        "protection_min_hold_minutes": 45,
+        "weather_entity_id": "weather.home",
+    }
+    assert _integration.rain_threshold_mm_h(_entry_with_options(result["data"])) == 0.0
+
+
+@pytest.mark.parametrize(
+    "options, expected", [({}, 1.0), ({"rain_threshold_mm_h": 0}, 0)],
+)
+def test_options_flow_threshold_default_and_selector(options, expected) -> None:
+    flow = MeteoSwissRadarOptionsFlow()
+    flow.handler = "entry-197"
+    flow.hass = MagicMock()
+    flow.hass.config_entries.async_get_entry.return_value = _entry_with_options(options)
+    flow.async_show_form = lambda **kwargs: kwargs
+    result = _run(flow.async_step_init())
+    sections = {marker.key: value for marker, value in result["data_schema"].items()}
+    fields = sections["rain_detection"].schema
+    marker, selector = next(iter(fields.items()))
+    assert marker.key == "rain_threshold_mm_h"
+    assert marker.default == expected
+    assert selector.config["min"] == 0
+    assert selector.config["max"] == 60
+    assert selector.config["unit_of_measurement"] == "mm/h"
+
+
+def test_setup_passes_zero_threshold_to_coordinator(monkeypatch) -> None:
+    from custom_components.meteoswiss_radar import nowcast
+
+    coordinator = MagicMock()
+    coordinator.async_refresh = AsyncMock()
+    coordinator.location_in_radar_coverage = True
+    factory = MagicMock(return_value=coordinator)
+    monkeypatch.setattr(nowcast, "MeteoSwissRadarNowcastCoordinator", factory)
+    hass = _hass_in_switzerland()
+    hass.config_entries.async_forward_entry_setups = AsyncMock()
+    entry = _entry_with_options({"rain_threshold_mm_h": 0.0})
+    _run(_integration._async_setup_nowcast(
+        hass, entry, MagicMock(), latitude=47.3769, longitude=8.5417,
+    ))
+    assert factory.call_args.kwargs["rain_threshold_mm_h"] == 0.0
+    assert hass.data[_integration.DATA_NOWCAST][entry.entry_id][
+        "nowcast_coordinator"
+    ] is coordinator

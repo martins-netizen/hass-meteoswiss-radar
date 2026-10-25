@@ -8,12 +8,17 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ## [Unreleased]
 
+### Added
+
+- A configurable radar rain threshold under *Configure → Radar rain detection*.
+  The default remains 1 mm/h; 0 includes the weakest precipitation band for
+  sensitive awnings, with a higher risk of false alarms. Requires restart
+
 ### Fixed
 
 - Synchronize this maintenance fork with upstream v0.16.0, including the local
   nowcast and protection logic documented below, while retaining fork-specific
-  tooling and error handling. The configurable rain threshold is reviewed
-  separately. Requires restart.
+  tooling and error handling. Requires restart.
 - Handle rejected radar-card initialization and custom-element registration
   without unhandled Promise rejections. Simplify config-entry setup while
   preserving successful setup and reload behavior. Requires restart.

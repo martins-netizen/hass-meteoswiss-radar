@@ -7,17 +7,18 @@ upstream. It does not publish releases automatically.
 
 ## Synchronization baseline
 
-The synchronization PR imports upstream `master` at
+[PR #7](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/7)
+imported upstream `master` at
 `82f4ba065ff65ea7d241c3ff05be9965cbddf546` (including v0.16.0).
 Before that synchronization, the fork's `master` was based on v0.14.0.
-The separate rain-threshold branch already descends from this upstream commit;
-it is not evidence that the fork's default branch has been synchronized.
+The merge retained upstream ancestry and the fixes from PRs #5 and #6.
 
-The configured rain threshold remains in
-[PR #4](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/4).
-This synchronization imports the upstream nowcast, minimum protection hold,
-weather-entity display forecast and diagnostics, while retaining the fixes from
-PRs #5 and #6. It does not include the configurable threshold.
+This branch also includes the configurable rain threshold reviewed in
+[PR #4](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/4),
+now based on the synchronized `master`. It preserves upstream's nowcast,
+minimum protection hold, weather-entity display forecast and diagnostics.
+The threshold defaults to 1 mm/h; selecting 0 explicitly includes the weakest
+recognized band (ADR-0011). See [LOCAL_NOWCAST.md](../LOCAL_NOWCAST.md).
 
 ## Review each upstream merge
 
@@ -37,9 +38,9 @@ PRs #5 and #6. It does not include the configurable threshold.
 
 Do this review before starting a new feature or preparing an installation.
 Importing upstream code, tagging a release and installing it in Home Assistant
-are separate actions. In particular, do not install this synchronization by
-itself over an instance that uses PR #4: the configurable threshold must first
-be integrated and verified too.
+are separate actions. PR #7 alone does not include the configurable threshold;
+an instance using that feature needs the combined, verified source from PR #4
+rather than the synchronization commit by itself.
 
 ## Existing fork policies to preserve
 
