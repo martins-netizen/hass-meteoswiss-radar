@@ -11,7 +11,7 @@ import asyncio
 import pathlib
 import sys
 from contextlib import asynccontextmanager
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -100,11 +100,84 @@ def _make_stubs() -> dict[str, ModuleType]:
 
     ha_cfg.ConfigFlow = _ConfigFlow  # type: ignore[attr-defined]
     ha_cfg.ConfigFlowResult = dict  # type: ignore[attr-defined]
+
+    class _OptionsFlow:
+        """Stand-in for OptionsFlow; HA supplies hass/config_entry for real."""
+
+    ha_cfg.OptionsFlow = _OptionsFlow  # type: ignore[attr-defined]
     ha_core = ModuleType("homeassistant.core")
     ha_core.HomeAssistant = object  # type: ignore[attr-defined]
+    # Identity stand-in for homeassistant.core.callback.  The entity modules
+    # (sensor.py) import it, so this stub must carry it even when test_proxy
+    # wins the sys.modules.setdefault race over the entity test files.
+    ha_core.callback = lambda func: func  # type: ignore[attr-defined]
     ha_helpers = ModuleType("homeassistant.helpers")
     ha_client = ModuleType("homeassistant.helpers.aiohttp_client")
     ha_client.async_get_clientsession = MagicMock()  # type: ignore[attr-defined]
+
+    # Entity registry stub for the nowcast opt-in migration (#197). `entries`
+    # is what a test sets to say "this entry already owns these entities".
+    # voluptuous ships with Home Assistant, not with the stdlib-only test env.
+    # The options flow only builds a schema, so a pass-through is enough.
+    vol = ModuleType("voluptuous")
+
+    class _Marker:
+        def __init__(
+            self, key: str, default: object = None, description: object = None
+        ) -> None:
+            self.key = key
+            self.default = default
+            self.description = description
+
+        def __hash__(self) -> int:
+            return hash(self.key)
+
+        def __eq__(self, other: object) -> bool:
+            return self.key == getattr(other, "key", other)
+
+    vol.Schema = lambda schema, **kwargs: schema  # type: ignore[attr-defined]
+    # Validators are pass-throughs: the flow only builds a schema here, it never
+    # runs it -- Home Assistant validates the submitted input on its side.
+    vol.All = lambda *validators: validators  # type: ignore[attr-defined]
+    vol.Coerce = lambda typ: typ  # type: ignore[attr-defined]
+    vol.Range = lambda **kwargs: kwargs  # type: ignore[attr-defined]
+    vol.Required = _Marker  # type: ignore[attr-defined]
+    vol.Optional = _Marker  # type: ignore[attr-defined]
+
+    # Selector stubs: the options flow only builds the schema here, so the
+    # selector needs to be constructible, not functional.
+    ha_sel = ModuleType("homeassistant.helpers.selector")
+
+    class _EntitySelectorConfig(dict):
+        def __init__(self, **kwargs: object) -> None:
+            super().__init__(**kwargs)
+
+    class _EntitySelector:
+        def __init__(self, config: object = None) -> None:
+            self.config = config
+
+    ha_sel.EntitySelector = _EntitySelector  # type: ignore[attr-defined]
+    ha_sel.EntitySelectorConfig = _EntitySelectorConfig  # type: ignore[attr-defined]
+    ha_sel.NumberSelector = _EntitySelector  # type: ignore[attr-defined]
+    ha_sel.NumberSelectorConfig = _EntitySelectorConfig  # type: ignore[attr-defined]
+    ha_sel.NumberSelectorMode = SimpleNamespace(BOX="box", SLIDER="slider")  # type: ignore[attr-defined]
+
+    # `section` wraps a nested schema; the stub keeps it inspectable.
+    ha_flow = ModuleType("homeassistant.data_entry_flow")
+
+    class _Section:
+        def __init__(self, schema: object, options: object = None) -> None:
+            self.schema = schema
+            self.options = options
+
+    ha_flow.section = _Section  # type: ignore[attr-defined]
+
+    ha_er = ModuleType("homeassistant.helpers.entity_registry")
+    ha_er.entries = []  # type: ignore[attr-defined]
+    ha_er.async_get = lambda hass: ha_er  # type: ignore[attr-defined]
+    ha_er.async_entries_for_config_entry = (  # type: ignore[attr-defined]
+        lambda registry, entry_id: list(registry.entries)
+    )
 
     return {
         "aiohttp": aiohttp,
@@ -114,14 +187,46 @@ def _make_stubs() -> dict[str, ModuleType]:
         "homeassistant.components.http": ha_http,
         "homeassistant.config_entries": ha_cfg,
         "homeassistant.core": ha_core,
+        "homeassistant.data_entry_flow": ha_flow,
         "homeassistant.helpers": ha_helpers,
         "homeassistant.helpers.aiohttp_client": ha_client,
+        "homeassistant.helpers.entity_registry": ha_er,
+        "homeassistant.helpers.selector": ha_sel,
+        "voluptuous": vol,
     }
 
 
 _STUBS = _make_stubs()
 for _name, _mod in _STUBS.items():
     sys.modules.setdefault(_name, _mod)
+
+# Another test module collected earlier (e.g. test_nowcast) may have won the
+# setdefault race and registered its own equivalent stubs — those are the
+# classes the imported integration is actually bound to. Rebind our local
+# references to the registered stubs so identity checks in the tests below
+# (`isinstance(resp, _FakeFileResponse)`, `except aiohttp.ClientError`) match
+# the objects the integration constructs and raises.
+_ClientError = sys.modules["aiohttp"].ClientError
+_FakeWeb = sys.modules["aiohttp"].web
+_FakeResponse = _FakeWeb.Response
+_FakeFileResponse = _FakeWeb.FileResponse
+
+# The winning stub may predate attributes only this module needs (config_flow
+# imports OptionsFlow and callback). Fill those in on whatever module won rather
+# than copying the whole stub set into every test file -- that duplication is
+# what makes this scaffolding brittle in the first place (#207).
+for _mod_name, _attrs in (
+    ("homeassistant.config_entries", ("OptionsFlow",)),
+    ("homeassistant.core", ("callback",)),
+    (
+        "homeassistant.helpers.selector",
+        ("NumberSelector", "NumberSelectorConfig", "NumberSelectorMode"),
+    ),
+):
+    _registered = sys.modules[_mod_name]
+    for _attr in _attrs:
+        if not hasattr(_registered, _attr):
+            setattr(_registered, _attr, getattr(_STUBS[_mod_name], _attr))
 
 # Import after stubs are in place.
 from custom_components.meteoswiss_radar import (  # noqa: E402
@@ -136,6 +241,9 @@ from custom_components.meteoswiss_radar import (  # noqa: E402
     async_unload_entry,
 )
 import custom_components.meteoswiss_radar as _integration  # noqa: E402
+from custom_components.meteoswiss_radar.config_flow import (  # noqa: E402
+    MeteoSwissRadarOptionsFlow,
+)
 
 # Shorthand used in every test.
 _VERSIONS_TAIL = "product/output/versions.json"
@@ -240,7 +348,11 @@ def _counting_upstream(
 
 def _inject_session(view: MeteoSwissRadarProxyView, session: object) -> None:
     """Point async_get_clientsession at our fake session for this call."""
-    ha_client = _STUBS["homeassistant.helpers.aiohttp_client"]
+    # Mutate the module actually registered in sys.modules, not this file's
+    # private _STUBS copy: another test module (collected earlier) may have won
+    # the setdefault race and registered its own stub, which is the one the
+    # imported integration is bound to.
+    ha_client = sys.modules["homeassistant.helpers.aiohttp_client"]
     ha_client.async_get_clientsession.return_value = session
 
 
@@ -1451,3 +1563,268 @@ def test_async_unload_entry_removes_card_resource(
 
     assert removed == ["/meteoswiss_radar/frontend/meteoswiss-radar-card.js"]
     assert _integration.DOMAIN not in hass.data
+
+
+# ---------------------------------------------------------------------------
+# Tests: local nowcast opt-in (#197)
+# ---------------------------------------------------------------------------
+
+def _registry_stub():
+    """The registered entity_registry stub (another module may have won setdefault)."""
+    return sys.modules["homeassistant.helpers.entity_registry"]
+
+
+def _registry_entry(domain: str):
+    """A registry entry stand-in exposing only the `.domain` the gate reads."""
+    entry = MagicMock()
+    entry.domain = domain
+    return entry
+
+
+def _entry_with_options(options: dict):
+    """A config entry whose `options` is a real Mapping, not a MagicMock.
+
+    The gate ignores a non-Mapping `options` on purpose, so a bare MagicMock
+    entry (what the other lifecycle tests use) reads as "no explicit choice".
+    """
+    entry = MagicMock()
+    entry.options = options
+    entry.entry_id = "entry-197"
+    return entry
+
+
+def _hass_in_switzerland():
+    hass = MagicMock()
+    hass.data = {}
+    hass.http.async_register_static_paths = AsyncMock()
+    # Zurich: a location the nowcast would happily accept, so the only thing
+    # deciding these tests is the opt-in itself.
+    hass.config.latitude = 47.3769
+    hass.config.longitude = 8.5417
+    return hass
+
+
+def _setup_and_record(hass, entry, monkeypatch: pytest.MonkeyPatch) -> list:
+    """Run async_setup_entry with the nowcast setup replaced by a recorder."""
+    calls: list = []
+
+    async def _record(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(_integration, "_async_setup_nowcast", _record)
+    monkeypatch.setattr(_integration, "add_extra_js_url", lambda hass, url: None)
+    _run(async_setup_entry(hass, entry))
+    return calls
+
+
+def test_nowcast_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fresh entry gets no nowcast entities: the option defaults to off (#197)."""
+    _registry_stub().entries = []
+    calls = _setup_and_record(
+        _hass_in_switzerland(), _entry_with_options({}), monkeypatch
+    )
+
+    assert calls == [], "nowcast must not be set up without the opt-in"
+
+
+def test_nowcast_option_enables_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The opt-in switches the entities on."""
+    _registry_stub().entries = []
+    calls = _setup_and_record(
+        _hass_in_switzerland(),
+        _entry_with_options({"nowcast_enabled": True}),
+        monkeypatch,
+    )
+
+    assert len(calls) == 1
+    assert calls[0][1]["latitude"] == 47.3769
+
+
+def test_existing_entities_migrate_to_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An entry that predates the option keeps its entities.
+
+    Someone running v0.15.0/v0.16.0 already has a rain-protection binary sensor
+    wired into an automation; introducing the option must not silently take it
+    away, so an entry that already owns nowcast entities reads as enabled.
+    """
+    _registry_stub().entries = [_registry_entry("binary_sensor")]
+    calls = _setup_and_record(
+        _hass_in_switzerland(), _entry_with_options({}), monkeypatch
+    )
+
+    assert len(calls) == 1, "an entry with existing nowcast entities must stay enabled"
+
+
+def test_explicit_opt_out_beats_existing_entities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Turning the option off removes the entities even though they exist."""
+    _registry_stub().entries = [_registry_entry("sensor")]
+    calls = _setup_and_record(
+        _hass_in_switzerland(),
+        _entry_with_options({"nowcast_enabled": False}),
+        monkeypatch,
+    )
+
+    assert calls == [], "an explicit False must win over the registry fallback"
+
+
+def test_unrelated_entities_do_not_enable_nowcast(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only sensor/binary_sensor entities of this entry imply the old behaviour."""
+    _registry_stub().entries = [_registry_entry("camera")]
+    calls = _setup_and_record(
+        _hass_in_switzerland(), _entry_with_options({}), monkeypatch
+    )
+
+    assert calls == []
+
+
+def test_setup_registers_one_options_update_listener(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Toggling the option must reload the entry, and only one listener is added."""
+    _registry_stub().entries = []
+    hass = _hass_in_switzerland()
+    entry = _entry_with_options({})
+    _setup_and_record(hass, entry, monkeypatch)
+
+    assert entry.add_update_listener.call_count == 1
+    assert entry.async_on_unload.call_count == 1
+
+    # A second setup without an unload short-circuits, so no second listener.
+    _setup_and_record(hass, entry, monkeypatch)
+    assert entry.add_update_listener.call_count == 1
+
+
+def test_nowcast_setup_failure_is_not_reported_as_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed per-entry setup must propagate so HA can retry the entry."""
+    hass = _hass_in_switzerland()
+    entry = _entry_with_options({"nowcast_enabled": True})
+    setup_nowcast = AsyncMock(side_effect=RuntimeError("nowcast setup failed"))
+    monkeypatch.setattr(_integration, "_async_setup_nowcast", setup_nowcast)
+    monkeypatch.setattr(_integration, "add_extra_js_url", lambda hass, url: None)
+
+    with pytest.raises(RuntimeError, match="nowcast setup failed"):
+        _run(async_setup_entry(hass, entry))
+
+    setup_nowcast.assert_awaited_once()
+    assert entry.entry_id not in hass.data[_integration._ENTRY_SETUP_KEY]
+
+
+def test_options_flow_resolves_entry_via_handler() -> None:
+    """The options form must resolve the entry from `self.handler`, not
+    `self.config_entry`.
+
+    `OptionsFlow.config_entry` only exists from HA 2024.12, but the manifest
+    supports 2024.7.0. On the older floor, reading `self.config_entry` raises
+    AttributeError and the options dialog fails to open. The empty `OptionsFlow`
+    stub reproduces that floor: it has no `config_entry`, so a step that reached
+    for it would raise here too.
+    """
+    _registry_stub().entries = []
+    entry = _entry_with_options({"nowcast_enabled": True})
+
+    flow = MeteoSwissRadarOptionsFlow()
+    flow.handler = entry.entry_id
+    flow.hass = MagicMock()
+    flow.hass.config_entries.async_get_entry = MagicMock(return_value=entry)
+    flow.async_show_form = lambda **kwargs: kwargs
+
+    result = _run(flow.async_step_init())
+
+    flow.hass.config_entries.async_get_entry.assert_called_once_with(entry.entry_id)
+    assert result["step_id"] == "init"
+    # The Required markers carry the defaults the dialog will preselect. Looked
+    # up by key rather than unpacked, so adding an option does not break this.
+    schema = result["data_schema"]
+    markers = {marker.key: marker for marker in schema}
+    # Sections nest their own schema; flatten one level to reach the fields.
+    for value in schema.values():
+        if hasattr(value, "schema"):
+            markers.update({inner.key: inner for inner in value.schema})
+    # The explicit True resolves without touching the registry fallback.
+    assert markers["nowcast_enabled"].default is True
+    assert markers["protection_min_hold_minutes"].default == 30
+
+
+def test_options_flow_stores_sections_as_flat_options() -> None:
+    """The dialog groups fields in sections, but every reader in __init__ looks
+    up flat keys. The number selector also submits a float, which
+    `protection_min_hold_minutes` would reject in favour of the default.
+    """
+    flow = MeteoSwissRadarOptionsFlow()
+    flow.async_create_entry = lambda **kwargs: kwargs
+
+    result = _run(
+        flow.async_step_init(
+            {
+                "nowcast_enabled": True,
+                "rain_protection": {"protection_min_hold_minutes": 45.0},
+                "forecast": {"weather_entity_id": "weather.home"},
+            }
+        )
+    )
+
+    assert result["data"] == {
+        "nowcast_enabled": True,
+        "protection_min_hold_minutes": 45,
+        "weather_entity_id": "weather.home",
+    }
+    assert type(result["data"]["protection_min_hold_minutes"]) is int
+    entry = _entry_with_options(result["data"])
+    assert _integration.protection_min_hold_minutes(entry) == 45
+
+
+def test_options_flow_cleared_weather_entity_means_radar_only() -> None:
+    flow = MeteoSwissRadarOptionsFlow()
+    flow.async_create_entry = lambda **kwargs: kwargs
+
+    result = _run(
+        flow.async_step_init(
+            {
+                "nowcast_enabled": True,
+                "rain_protection": {"protection_min_hold_minutes": 30},
+                "forecast": {},
+            }
+        )
+    )
+
+    assert "weather_entity_id" not in result["data"]
+    entry = _entry_with_options(result["data"])
+    assert _integration.forecast_weather_entity(entry) is None
+
+
+# ---------------------------------------------------------------------------
+# Tests: the weather entity option (ADR-0010)
+# ---------------------------------------------------------------------------
+
+def test_weather_entity_option_is_read_when_set() -> None:
+    entry = _entry_with_options({"weather_entity_id": "weather.home"})
+
+    assert _integration.forecast_weather_entity(entry) == "weather.home"
+
+
+def test_weather_entity_option_is_trimmed() -> None:
+    entry = _entry_with_options({"weather_entity_id": "  weather.home  "})
+
+    assert _integration.forecast_weather_entity(entry) == "weather.home"
+
+
+@pytest.mark.parametrize("stored", ["", "   ", None, 42, True])
+def test_unusable_weather_entity_reads_as_radar_only(stored: object) -> None:
+    """Anything that is not a usable entity id must mean "radar only".
+
+    Returning the raw value would hand a service call an entity id of `42`,
+    which fails every update rather than once at setup.
+    """
+    entry = _entry_with_options({"weather_entity_id": stored})
+
+    assert _integration.forecast_weather_entity(entry) is None
+
+
+def test_missing_weather_entity_option_reads_as_radar_only() -> None:
+    assert _integration.forecast_weather_entity(_entry_with_options({})) is None

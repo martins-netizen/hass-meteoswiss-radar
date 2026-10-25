@@ -1,0 +1,189 @@
+# Local rain nowcast
+
+MeteoSwiss Radar can expose local rain-nowcast entities derived from the same
+MeteoSwiss RZC / INCA animation data that powers the Lovelace card.
+
+The integration evaluates radar contours at the Home Assistant home location
+and reuses the existing authenticated, allowlisted, cache-aware proxy. It does
+not add a second upstream API path.
+
+## Enabling it
+
+The entities are **off by default** — installing the integration for the card
+alone should not add entities or a polling coordinator. Turn them on under
+**Settings → Devices & services → MeteoSwiss Radar → Configure**, with
+*Rain sensors for my home*. The same dialog holds the two refinements below:
+the [minimum on-time](#minimum-hold-on-the-protection-signal) for rain
+protection and the [weather entity](#seeing-further-than-the-radar) that
+continues *Next rain* past the radar.
+
+Flipping the toggle reloads the config entry, so the entities appear or
+disappear without restarting Home Assistant. While enabled the integration polls
+MeteoSwiss every 5 minutes.
+
+If you already had these entities before the toggle existed, they stay enabled
+on upgrade — an existing rain-protection automation keeps working.
+
+## Entities
+
+- `sensor.meteoswiss_radar_rain_nowcast_status` reports `dry`,
+  `approaching`, `active`, or `unknown`.
+- `sensor.meteoswiss_radar_rain_in` reports the approximate lead time in
+  minutes while rain is approaching. *Disabled by default* — *Next rain*
+  already shows it; enable it under the entity's settings for automations.
+- `sensor.meteoswiss_radar_next_rain` says in a few characters when rain is
+  next expected: `Now`, `12 min` (under an hour), `17:00` (within 24 h),
+  `Mo 14:00` (later), or `No rain` — never `unknown` on a dry day. The text
+  follows the Home Assistant language (DE / FR / IT, English otherwise). For
+  automations the attributes carry the data: `at` (timestamp), `source`
+  (`radar` or `forecast`) and `checked_until` (how far the forecast was
+  searched). See [ADR-0010](docs/adr/0010-layered-next-rain.md).
+- `sensor.meteoswiss_radar_expected_dry_from` (displayed as "Expected dry again
+  from" / "Voraussichtlich trocken ab" / "Sec à nouveau prévu à partir de" /
+  "Di nuovo asciutto previsto da") estimates when conditions are expected to be
+  dry again. It reports the start of the first 30-minute dry window found in the
+  forecast. Because INCA advection-based nowcasting is only reliable within
+  roughly 2 hours, the sensor is suppressed beyond that horizon: once no dry
+  window is confirmed within 2 hours the sensor becomes `unknown` and
+  `event_end_open` remains `True`. This is a display estimate, not the basis for
+  the rain-protection automation signal. *Disabled by default*, since it only
+  has a value while it rains.
+- `binary_sensor.meteoswiss_radar_rain_protection` is intended for automations that
+  need a conservative rain-protection signal.
+
+## Attributes
+
+`sensor.meteoswiss_radar_rain_nowcast_status`:
+
+| Attribute | Meaning |
+| --- | --- |
+| `currently_wet` | Rain is measured at the location right now. |
+| `protection_active` | Whether rain protection is on; the binary sensor's state. |
+| `event_start` | Start of the current or approaching rain event (ISO timestamp), else `null`. |
+| `event_end` | Estimated end of the event: the start of the first confirmed dry window, else `null`. |
+| `event_end_open` | `true` while no dry window is confirmed yet. |
+| `warning_lead_minutes` | How far ahead rain triggers protection (30). |
+| `dry_window_minutes` | Length of the dry window that ends an event (30). |
+| `forecast_horizon_end` | End of the forecast the decision was based on. |
+| `measurement_time` | Time of the radar measurement used. |
+| `manifest_generated_at` | When MeteoSwiss generated the manifest. |
+| `frame_failures` | Frames that failed to load in the last update. |
+
+`sensor.meteoswiss_radar_next_rain`: `source` (`radar` or `forecast`) and
+`radar_event_start`, the start of the radar's own event even when the state
+comes from the forecast.
+
+`binary_sensor.meteoswiss_radar_rain_protection`: `status`, `currently_wet`,
+`rain_in_minutes`, `event_start`, `event_end`, `event_end_open`,
+`warning_lead_minutes`, `dry_window_minutes` and `protection_hold_until` (set
+only while the minimum hold keeps the sensor on).
+
+The IDs above are the English defaults. Entity names are translated by Home
+Assistant, so the actual IDs depend on the language active when the entities
+were first created and on what the entity registry already held.
+
+## A one-line summary on the dashboard
+
+*Next rain* is that line: put it on a tile or entities card. For a longer
+sentence, a markdown card can combine it with the status:
+
+```yaml
+type: markdown
+content: >-
+  {% set st = states('sensor.meteoswiss_radar_rain_nowcast_status') %}
+  {% set until = state_attr('sensor.meteoswiss_radar_rain_nowcast_status',
+                            'event_end') %}
+  {% if st == 'active' %}
+    It is raining{% if until %} until about {{ until | as_timestamp
+      | timestamp_custom('%H:%M') }}{% endif %}.
+  {% else %}
+    Next rain: {{ states('sensor.meteoswiss_radar_next_rain') }}
+  {% endif %}
+```
+
+Adjust the entity IDs to yours — they follow the language that was active when
+the entities were first created.
+
+## Event behaviour
+
+Rain protection starts when precipitation is measured at the Home Assistant
+location or forecast within 30 minutes. The integration classifies frame
+colours against the current MeteoSwiss legend and uses 1 mm/h as the rain
+threshold, ignoring the least reliable 0-1 mm/h band.
+
+Once an event has started, short dry gaps remain part of the same event. The
+event is only cleared when the current measurement is dry and the forecast
+confirms a continuous 30-minute dry window from the current time.
+
+The protection signal only ever looks at that 30-minute window. On a dry day the
+coordinator still fetches the radar frames up to two hours ahead, but only to
+answer *Next rain* — they never raise protection. When rain is approaching or
+active, it extends the fetch to two hours plus the dry-window padding so it can
+estimate when conditions are expected to be dry again.
+
+## Seeing further than the radar
+
+*Next rain* uses the radar nowcast up to **2 hours** ahead: kilometre cells at
+5-minute steps, evaluated at your location. That is MeteoSwiss' best product for
+that range, and roughly where INCA itself blends into a numerical model.
+Scanning the full ~28 h of frames would cost about 6 MB every five minutes to
+re-derive what a model already states as a number.
+
+So beyond two hours `Next rain` borrows: pick a **weather entity** under
+*Configure*, and it reads that entity's hourly forecast. An hour counts as rain
+when it has at least 0.1 mm *and* 50 % probability, and only hours after what the
+radar already saw dry are considered. On one measured afternoon the radar
+reported `dry` while the forecast already had rain four hours out — the sensor
+then says `17:00` with `source: forecast`. When everything is dry it says
+`No rain`, and `checked_until` tells how far that reaches.
+
+The two-hour look-ahead costs about four times the frames of the 30-minute
+window on a dry day (roughly 0.5 MB instead of 0.1 MB per 5-minute update,
+gzipped).
+
+The rain-protection binary sensor is deliberately **not** layered and stays on
+the 30-minute window. It drives an actuator; past half an hour a radar nowcast
+misses and invents showers often enough to move an awning for nothing.
+
+## Minimum hold on the protection signal
+
+Rain protection stays on for at least **30 minutes** once it switches on, even if
+the radar clears earlier — it smooths out the flapping at the edge of a shower.
+Adjustable under *Configure* as *Minimum on-time*; 0 disables it.
+
+This exists because a shower that clips the location otherwise cycles the signal
+within minutes. From a live instance:
+
+```
+00:43  on
+00:48  off      ← 5 minutes
+00:53  on
+01:18  off
+```
+
+Whatever the binary sensor drives — usually an awning motor — would have run four
+times in 35 minutes. The hold only affects the protection signal: the status
+sensor keeps reporting what the radar actually sees, so a held signal shows up as
+`dry` with protection still on, and the `protection_hold_until` attribute says
+until when.
+
+## Missing data
+
+Missing or stale current radar data never produces a false all-clear. If the
+current state, a frame colour, or the short forecast window cannot be
+established reliably, the nowcast becomes `unknown`; an already active event
+remains protected until a valid dry window is confirmed.
+
+For safety automations, treat only an explicit `off` as an all-clear. React to
+`on` immediately, and handle a persistent `unknown` or `unavailable` state as a
+separate fail-safe condition rather than assuming that it means dry weather.
+
+## Architecture
+
+The pure geometry decoder and event state machine live in
+`custom_components/meteoswiss_radar/nowcast_core.py` and have no Home Assistant
+dependency. `nowcast.py` owns Home Assistant coordination and upstream frame
+fetching. `sensor.py` and `binary_sensor.py` expose the coordinator state.
+
+The architectural decision is recorded in
+[`docs/adr/0009-local-rain-nowcast-entities.md`](docs/adr/0009-local-rain-nowcast-entities.md).

@@ -1,5 +1,11 @@
 <h1 align="center">MeteoSwiss Radar</h1>
 
+> Personal maintenance fork of
+> [chriguschneider/hass-meteoswiss-radar](https://github.com/chriguschneider/hass-meteoswiss-radar).
+> The installation and release information below describes upstream.
+> See [fork maintenance](docs/fork-maintenance.md) for this fork's baseline,
+> separate rain-threshold feature and workflow policies.
+
 <p align="center"><em>The app's radar, on your dashboard.</em></p>
 
 <p align="center">
@@ -45,6 +51,9 @@ Assistant dashboard.
 - **No YAML needed.** There's a visual editor, and the defaults just work.
 - **When MeteoSwiss changes something upstream**, you get a small banner
   instead of a broken map.
+- **Optional rain-nowcast entities** for automations — "is it raining at my
+  house, and is rain due in the next half hour" — off by default, from the same
+  radar data. See [`LOCAL_NOWCAST.md`](LOCAL_NOWCAST.md).
 
 ## Install
 
@@ -66,6 +75,19 @@ is optional and lives in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 Needs Home Assistant **2024.7.0 or newer**. Uninstalling needs a restart,
 because the integration serves the card as a frontend resource.
 
+### "Custom element doesn't exist: meteoswiss-radar-card"
+
+The card ships inside the integration, so HACS alone doesn't make it appear.
+Check, in order:
+
+1. **Restarted** Home Assistant after the HACS download.
+2. **Added the integration** under Settings → Devices & Services → Add
+   integration → *MeteoSwiss Radar*. Downloading it in HACS is not enough; the
+   card is only registered once the integration is set up.
+3. **Reloaded the browser tab.** Home Assistant adds the card to the page when
+   the page loads, so a tab that was open while you added the integration
+   doesn't have it yet. In the Companion app, reset the frontend cache.
+
 ## Overlay layers
 
 Four optional layers, switched on per card in the editor or in YAML:
@@ -82,6 +104,59 @@ frames.** That's how MeteoSwiss publishes it — they don't predict lightning, a
 they don't record precipitation type. So a snow overlay shows nothing while you
 scrub through recorded radar, and lightning vanishes the moment you cross into
 the forecast. The app behaves the same way.
+
+The card speaks German, French and Italian: the timeline's weekday labels
+follow your Home Assistant profile language, and the map label, legend and
+banners are translated for the four MeteoSwiss languages (English fallback).
+The card editor stays English.
+
+## Rain nowcast (optional)
+
+For automations the integration can also evaluate the radar at your Home
+Assistant location. It is off by default: switch it on under Settings → Devices
+& services → MeteoSwiss Radar → Configure. The options dialog has the toggle
+*Rain sensors for my home* and two headed sections: *Rain protection: smooth
+out flapping* with *Minimum on-time* (minutes, default 30, 0 disables) and
+*Next rain beyond 2 hours* with *Weather entity for the hourly forecast*.
+
+Beyond the radar's own horizon, *Next rain* can read the hourly forecast of a
+`weather.*` entity. Pick one as the weather entity, and for
+[MeteoSwiss Weather](https://github.com/chriguschneider/hass-meteoswiss-weather)
+make sure its **hourly forecast option is on**: the nowcast calls
+`weather.get_forecasts` with type `hourly`, so an entity without an hourly
+forecast adds nothing.
+
+| Entity | What it tells you |
+| --- | --- |
+| `binary_sensor.meteoswiss_radar_rain_protection` | A binary sensor (not a switch) that is `on` from 30 minutes before rain until a 30-minute dry window is confirmed, held on for at least the configured minimum. Attributes include `protection_hold_until`. Radar only, never layered with model data. |
+| `sensor.meteoswiss_radar_rain_nowcast_status` | `dry`, `approaching`, `active` or `unknown`. Attributes you can automate on: `currently_wet`, `protection_active`, `event_start`, `event_end`, `event_end_open`, `warning_lead_minutes`, `dry_window_minutes`. |
+| `sensor.meteoswiss_radar_next_rain` | When rain is next expected. Attribute `source` is `radar` or `forecast`; `radar_event_start` is the start of the radar's own event. |
+| `sensor.meteoswiss_radar_rain_in` | Minutes until rain while it is approaching. |
+| `sensor.meteoswiss_radar_expected_dry_from` | When it is expected to be dry again. |
+
+Entity IDs follow the language active when they were first created. The long
+form, with every attribute, is in [`LOCAL_NOWCAST.md`](LOCAL_NOWCAST.md).
+
+## Works together
+
+This integration, [MeteoSwiss Weather](https://github.com/chriguschneider/hass-meteoswiss-weather)
+and the [weather-station-card](https://github.com/chriguschneider/weather-station-card)
+are three independent installs; none needs the others. Together they cover
+more:
+
+```
+hass-meteoswiss-weather ──(hourly forecast, option on)──▶ this integration ──(next_rain sensor)──▶ weather-station-card
+hass-meteoswiss-weather ──(weather entity · station sensors · zero-degree level + curve)──▶ weather-station-card
+```
+
+| What you want | Which piece | Setting |
+| --- | --- | --- |
+| The radar animation | This card | `type: custom:meteoswiss-radar-card` |
+| When rain is next expected | This integration | Nowcast on; weather entity = MeteoSwiss Weather with its hourly forecast on; in weather-station-card `sensors.next_rain` |
+| Forecast, measured values, snow line | MeteoSwiss Weather | Shown by weather-station-card |
+
+Forum threads: [weather-station-card](https://community.home-assistant.io/t/1011385)
+and [MeteoSwiss Weather](https://community.home-assistant.io/t/meteoswiss-weather-official-swiss-open-data-no-app-api-history-back-to-1980/1029728).
 
 ## How it works
 
