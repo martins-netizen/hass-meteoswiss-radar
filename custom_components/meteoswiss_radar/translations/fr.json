@@ -1,0 +1,76 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MeteoSwiss Radar",
+        "description": "Ajoute le proxy radar MeteoSwiss et la carte Lovelace `meteoswiss-radar-card`. Les entités de prévision de pluie locale sont optionnelles et désactivées par défaut — activez-les via « Configurer » après l'installation.\n\nRechargez ensuite l'onglet du navigateur (dans l'application Companion : réinitialisez le cache du frontend) — sinon les tableaux de bord signalent « Custom element doesn't exist: meteoswiss-radar-card »."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Déjà configuré. Une seule instance est autorisée."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options MeteoSwiss Radar",
+        "description": "La carte radar fonctionne sans ces réglages. Ils ajoutent des capteurs qui prévoient la pluie à votre emplacement, p. ex. pour rentrer un store automatiquement.",
+        "data": {
+          "nowcast_enabled": "Capteurs de pluie pour mon emplacement"
+        },
+        "data_description": {
+          "nowcast_enabled": "Évalue le radar à l'emplacement de Home Assistant toutes les 5 min. « Prochaine pluie » regarde jusqu'à 2 h à l'avance ; l'interrupteur « Protection pluie » pour les automatisations réagit à la pluie dans les 30 min."
+        },
+        "sections": {
+          "rain_protection": {
+            "name": "Protection pluie : lisser les fluctuations",
+            "description": "En bordure d'une averse, le radar peut passer de pluie à sec en quelques minutes. Ce réglage maintient « Protection pluie » active pendant une durée minimale, pour que le store ne rentre et ne sorte pas à répétition.",
+            "data": {
+              "protection_min_hold_minutes": "Durée minimale d'activation"
+            },
+            "data_description": {
+              "protection_min_hold_minutes": "N'affecte que l'interrupteur « Protection pluie », pas le capteur d'état. 0 = désactivée dès que le radar indique sec."
+            }
+          },
+          "forecast": {
+            "name": "Prochaine pluie au-delà de 2 heures",
+            "description": "Le radar regarde 2 heures à l'avance. Au-delà, « Prochaine pluie » utilise la prévision horaire d'une entité météo (dès 0,1 mm à 50 % de probabilité).",
+            "data": {
+              "weather_entity_id": "Entité météo pour la prévision horaire"
+            },
+            "data_description": {
+              "weather_entity_id": "Le capteur indique quelle source a répondu : radar ou prévision. Vide = radar seul."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "nowcast_status": {
+        "name": "État de la prévision immédiate de pluie",
+        "state": {
+          "dry": "Sec",
+          "approaching": "Pluie en approche",
+          "active": "Il pleut",
+          "unknown": "Aucune donnée"
+        }
+      },
+      "rain_in": {
+        "name": "Pluie dans"
+      },
+      "next_rain": {
+        "name": "Prochaine pluie"
+      },
+      "expected_dry_from": {
+        "name": "Sec à nouveau prévu à partir de"
+      }
+    },
+    "binary_sensor": {
+      "rain_protection": {
+        "name": "Protection contre la pluie"
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MeteoSwiss Radar",
+        "description": "Fügt den MeteoSwiss-Radar-Proxy und die Lovelace-Karte `meteoswiss-radar-card` hinzu. Lokale Regen-Nowcast-Entitäten sind optional und standardmässig deaktiviert — sie lassen sich nach der Einrichtung unter «Konfigurieren» aktivieren.\n\nLade anschliessend den Browser-Tab neu (in der Companion-App: Frontend-Cache zurücksetzen) — sonst melden Dashboards «Custom element doesn't exist: meteoswiss-radar-card»."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Bereits eingerichtet. Es ist nur eine Instanz möglich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MeteoSwiss Radar Optionen",
+        "description": "Die Radarkarte funktioniert ohne diese Einstellungen. Sie ergänzen Sensoren, die Regen an deinem Standort vorhersagen, z. B. um die Markise automatisch einzufahren.",
+        "data": {
+          "nowcast_enabled": "Regensensoren für meinen Standort"
+        },
+        "data_description": {
+          "nowcast_enabled": "Wertet das Radar am Home-Assistant-Standort alle 5 Min. aus. «Nächster Regen» schaut bis 2 h voraus; der Schalter «Regenschutz» für Automationen reagiert auf Regen innert 30 Min."
+        },
+        "sections": {
+          "rain_protection": {
+            "name": "Regenschutz: Schwankungen glätten",
+            "description": "Am Rand eines Schauers kann das Radar innert Minuten zwischen Regen und trocken wechseln. Hier bleibt «Regenschutz» mindestens eine gewisse Zeit an, damit die Markise nicht mehrmals ein- und ausfährt.",
+            "data": {
+              "protection_min_hold_minutes": "Mindestdauer eingeschaltet"
+            },
+            "data_description": {
+              "protection_min_hold_minutes": "Betrifft nur den Schalter «Regenschutz», nicht den Status-Sensor. 0 = aus, sobald das Radar trocken meldet."
+            }
+          },
+          "forecast": {
+            "name": "Nächster Regen nach 2 Stunden",
+            "description": "Das Radar schaut 2 Stunden voraus. Danach nutzt «Nächster Regen» die Stundenprognose einer Wetter-Entität (ab 0,1 mm bei 50 % Wahrscheinlichkeit).",
+            "data": {
+              "weather_entity_id": "Wetter-Entität für die Stundenprognose"
+            },
+            "data_description": {
+              "weather_entity_id": "Der Sensor zeigt, welche Quelle geantwortet hat: Radar oder Prognose. Leer = nur Radar."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "nowcast_status": {
+        "name": "Regen-Nowcast Status",
+        "state": {
+          "dry": "Trocken",
+          "approaching": "Regen zieht auf",
+          "active": "Es regnet",
+          "unknown": "Keine Daten"
+        }
+      },
+      "rain_in": {
+        "name": "Regen in"
+      },
+      "next_rain": {
+        "name": "Nächster Regen"
+      },
+      "expected_dry_from": {
+        "name": "Voraussichtlich trocken ab"
+      }
+    },
+    "binary_sensor": {
+      "rain_protection": {
+        "name": "Regenschutz"
+      }
+    }
+  }
+}

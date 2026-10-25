@@ -1,8 +1,9 @@
 # Developer tooling security maintenance
 
-The fork's `master` branch predates the separate configurable-rain-threshold
-review branch. This maintenance change does not update the integration,
-the card, Home Assistant options, or entity identities.
+The fork retains the tooling protections from PR #5 while synchronizing
+upstream runtime changes. See [fork-maintenance.md](fork-maintenance.md) for
+the imported upstream baseline and the separate configurable-rain-threshold
+review branch. A source synchronization is not a Home Assistant deployment.
 
 ## CI dependencies
 
@@ -54,15 +55,17 @@ The operator has already enabled SonarQube Cloud Automatic Analysis for
 `martins-netizen_hass-meteoswiss-radar`. `.sonarcloud.properties` configures
 that existing analysis: tests are identified separately, Python versions
 are explicit, and all current source roots remain included, including
-scripts and `.github` workflows. Only the vendored Leaflet JS and CSS are
+scripts, `.github` workflows and the imported `.claude` tooling. Only the
+vendored Leaflet JS and CSS are
 excluded; first-party code is not suppressed.
 
-Automatic Analysis reads this file from the default branch. The warnings
-cannot be considered resolved until the configuration has landed there and
-a subsequent analysis confirms the result. It does not accept Python or JS
-coverage reports. This maintenance PR does not replace or weaken the
-CI-based Sonar quality/coverage gate required by ADR-0007 for the newer
-rain-threshold branch. That branch's scanner setup remains a separate task.
+Automatic Analysis reads this file from the default branch. Individual
+warnings and findings require a subsequent analysis to confirm resolution.
+It does not accept Python or JS coverage reports. The fork's existing
+deployment has no CI-based Sonar workflow; synchronization preserves that
+choice rather than silently restoring the upstream scanner. This does not
+establish compliance with ADR-0007's upstream coverage requirements. A future
+switch to CI-based analysis must preserve those requirements.
 
 `sonar-project.properties` retains the CI-based settings for a future scan,
 with this fork's project identity and the same Python versions. The two
