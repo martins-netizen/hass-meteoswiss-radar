@@ -27,6 +27,9 @@ Under the hood: use Bash conditional expressions in the optional issue selector.
 
 ### Security
 
+- Update frontend test tooling to patched Vitest and source-map-js releases;
+  the Vite update is included through PR #3. Developer tooling only; no
+  Home Assistant restart or integration update required.
 - Harden developer tooling: verify pinned Python CI dependencies with hashes,
   disable npm installation hooks, and require explicit icon replacement while
   rejecting parent-traversal and symlink outputs. Developer tooling only; no
