@@ -14,6 +14,24 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
   The default remains 1 mm/h; 0 includes the weakest precipitation band for
   sensitive awnings, with a higher risk of false alarms. Requires restart
 
+### Fixed
+
+- Synchronize this maintenance fork with upstream v0.16.0, including the local
+  nowcast and protection logic documented below, while retaining fork-specific
+  tooling and error handling. Requires restart.
+- Handle rejected radar-card initialization and custom-element registration
+  without unhandled Promise rejections. Simplify config-entry setup while
+  preserving successful setup and reload behavior. Requires restart.
+
+Under the hood: use Bash conditional expressions in the optional issue selector.
+
+### Security
+
+- Harden developer tooling: verify pinned Python CI dependencies with hashes,
+  disable npm installation hooks, and require explicit icon replacement while
+  rejecting parent-traversal and symlink outputs. Developer tooling only; no
+  Home Assistant restart or integration update required.
+
 ## [v0.16.0] — 2026-10-21
 
 ### Added

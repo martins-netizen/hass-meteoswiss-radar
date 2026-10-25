@@ -31,11 +31,11 @@ pick() {
 number=""
 for prio in P1 P2 P3; do
   number="$(pick "$prio")"
-  if [ -n "$number" ]; then
+  if [[ -n "$number" ]]; then
     echo "next eligible issue: #$number ($prio)" >&2
     break
   fi
 done
 
-[ -z "$number" ] && echo "no eligible issue found" >&2
+[[ -z "$number" ]] && echo "no eligible issue found" >&2
 echo "number=$number"

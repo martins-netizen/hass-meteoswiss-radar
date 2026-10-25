@@ -665,28 +665,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _register_card_resource(hass)
 
     entries = hass.data.setdefault(_ENTRY_SETUP_KEY, set())
-    if entry.entry_id in entries:
-        return True
+    if entry.entry_id not in entries:
+        # Registered after the idempotency guard so a repeated setup without an
+        # intervening unload does not stack listeners; async_on_unload drops it
+        # again, so a real reload re-registers exactly one.
+        entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
-    # Registered after the idempotency guard so a repeated setup without an
-    # intervening unload does not stack listeners; async_on_unload drops it
-    # again, so a real reload re-registers exactly one.
-    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+        if not nowcast_entities_enabled(hass, entry):
+            _LOGGER.debug("Local nowcast entities are disabled for this entry")
+        elif (location := _home_location(hass)) is not None:
+            await _async_setup_nowcast(
+                hass,
+                entry,
+                proxy,
+                latitude=location[0],
+                longitude=location[1],
+            )
+        else:
+            _LOGGER.debug("Home location unavailable; local nowcast entities skipped")
 
-    if not nowcast_entities_enabled(hass, entry):
-        _LOGGER.debug("Local nowcast entities are disabled for this entry")
-    elif (location := _home_location(hass)) is not None:
-        await _async_setup_nowcast(
-            hass,
-            entry,
-            proxy,
-            latitude=location[0],
-            longitude=location[1],
-        )
-    else:
-        _LOGGER.debug("Home location unavailable; local nowcast entities skipped")
-
-    entries.add(entry.entry_id)
+        entries.add(entry.entry_id)
     return True
 
 

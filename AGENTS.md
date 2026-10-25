@@ -6,6 +6,15 @@ an AI assistant working on a branch, or a human driving one.
 
 ---
 
+## Personal fork deployment
+
+This is the `martins-netizen` maintenance fork. Its existing workflow and
+Sonar deployment differs from upstream; read
+[`docs/fork-maintenance.md`](docs/fork-maintenance.md) before synchronizing
+branches or changing CI. Preserve those fork policies during an upstream
+merge. A synchronization PR must retain upstream ancestry and be merged
+with a merge commit, not squash or rebase.
+
 ## Shared Skeleton
 
 These conventions apply across all of chriguschneider's repos and come from

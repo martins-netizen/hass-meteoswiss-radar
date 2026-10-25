@@ -1,57 +1,52 @@
 name: CodeQL
 
-# ADR-0005. The proxy's URL handling is the declared security boundary
-# (ADR-0001), and the card runs in the browser -- both deserve a static
-# pass that is not a human reading a diff.
-
+# Static analysis for the Python proxy and browser-side JavaScript.
 on:
   push:
-    branches: [master]
+    branches:
+      - master
   pull_request:
+    branches:
+      - master
+  workflow_dispatch:
   schedule:
-    # Saturday 02:15 UTC, matching the sibling weather-station-card repo.
-    # A weekly run matters because new CodeQL rules ship continuously: the
-    # value is not re-scanning unchanged code, it is scanning it with
-    # queries that did not exist last week.
     - cron: "15 2 * * 6"
 
 permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    name: Analyze Python and JavaScript
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      security-events: write
       contents: read
+      security-events: write
       actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript, python]
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
-          languages: ${{ matrix.language }}
+          languages: python,javascript-typescript
           queries: security-extended
           config: |
             paths-ignore:
-              # Vendored Leaflet. Third-party code we do not patch; findings
-              # here would be noise we cannot action. Mirrors sonar.exclusions.
               - custom_components/meteoswiss_radar/frontend/vendor
-              # Binary frame payloads, not source.
               - tests/fixtures
 
-      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      - name: Analyze
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
-          category: "/language:${{ matrix.language }}"
+          category: /language:python-javascript

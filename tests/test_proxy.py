@@ -1301,14 +1301,25 @@ def test_async_setup_entry_is_idempotent() -> None:
     hass.http.async_register_static_paths = AsyncMock()
     entry = MagicMock()
 
-    _run(async_setup_entry(hass, entry))
+    assert _run(async_setup_entry(hass, entry)) is True
     first_count = hass.http.register_view.call_count
 
-    _run(async_setup_entry(hass, entry))
+    assert _run(async_setup_entry(hass, entry)) is True
     second_count = hass.http.register_view.call_count
 
     assert first_count == 3, "expected three view registrations on first setup"
     assert second_count == 3, "second setup must not register views again"
+
+
+def test_setup_registration_failure_is_not_reported_as_success() -> None:
+    hass = MagicMock()
+    hass.data = {}
+    hass.http.register_view.side_effect = RuntimeError("route registration failed")
+
+    with pytest.raises(RuntimeError, match="route registration failed"):
+        _run(async_setup_entry(hass, MagicMock()))
+
+    assert not hass.data.get(_integration._ROUTES_KEY)
 
 
 def test_reload_reregisters_card_resource(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1685,6 +1696,23 @@ def test_setup_registers_one_options_update_listener(
     # A second setup without an unload short-circuits, so no second listener.
     _setup_and_record(hass, entry, monkeypatch)
     assert entry.add_update_listener.call_count == 1
+
+
+def test_nowcast_setup_failure_is_not_reported_as_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed per-entry setup must propagate so HA can retry the entry."""
+    hass = _hass_in_switzerland()
+    entry = _entry_with_options({"nowcast_enabled": True})
+    setup_nowcast = AsyncMock(side_effect=RuntimeError("nowcast setup failed"))
+    monkeypatch.setattr(_integration, "_async_setup_nowcast", setup_nowcast)
+    monkeypatch.setattr(_integration, "add_extra_js_url", lambda hass, url: None)
+
+    with pytest.raises(RuntimeError, match="nowcast setup failed"):
+        _run(async_setup_entry(hass, entry))
+
+    setup_nowcast.assert_awaited_once()
+    assert entry.entry_id not in hass.data[_integration._ENTRY_SETUP_KEY]
 
 
 def test_options_flow_resolves_entry_via_handler() -> None:

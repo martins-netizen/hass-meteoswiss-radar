@@ -1,5 +1,11 @@
 <h1 align="center">MeteoSwiss Radar</h1>
 
+> Personal maintenance fork of
+> [chriguschneider/hass-meteoswiss-radar](https://github.com/chriguschneider/hass-meteoswiss-radar).
+> The installation and release information below describes upstream.
+> See [fork maintenance](docs/fork-maintenance.md) for this fork's baseline,
+> separate rain-threshold feature and workflow policies.
+
 <p align="center"><em>The app's radar, on your dashboard.</em></p>
 
 <p align="center">
@@ -164,6 +170,9 @@ you want the details — the reverse-engineered wire format, the architecture
 decisions — see [FORMAT.md](FORMAT.md) and [docs/adr/](docs/adr/).
 
 ## Contributing
+
+For verified CI dependencies, safe icon regeneration, and Sonar analysis
+configuration, see [Developer tooling security maintenance](docs/security-maintenance.md).
 
 Issues and PRs welcome. [AGENTS.md](AGENTS.md) has the working agreement, and
 `npm test` / `python -m pytest -q` run the two suites.

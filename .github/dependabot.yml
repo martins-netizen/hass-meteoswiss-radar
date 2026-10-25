@@ -21,8 +21,8 @@ updates:
       include: "scope"
 
   # Card test tooling only (vitest). Nothing from npm ships: the card is a
-  # hand-written file with no build step (ADR-0002). No pip entry: CI
-  # installs ruff and pytest unpinned, there is no requirements file to bump.
+  # hand-written file with no build step (ADR-0002). Python CI tools use the
+  # reviewed hash lock in .github/requirements-ci.txt (docs/security-maintenance.md).
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
