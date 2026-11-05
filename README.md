@@ -57,11 +57,32 @@ Assistant dashboard.
 
 ## Install
 
-Search HACS for **MeteoSwiss Radar** and click Install, or use the button:
+On **HA 2026.11+**:
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=chriguschneider&repository=hass-meteoswiss-radar&category=integration)
+1. Open **Settings → Marketplace**, acknowledge the community-code notice if
+   prompted, and search for **MeteoSwiss Radar**. The catalogue source is
+   **chriguschneider/hass-meteoswiss-radar**; verify the intended source before
+   replacing any locally maintained fork.
+2. Install the intended published release. On a first install, Marketplace opens
+   setup without a mandatory restart for an integration not previously loaded.
+3. If setup does not open, add **MeteoSwiss Radar** under
+   **Settings → Devices & services → Add integration**.
 
-Then restart Home Assistant and add the integration under Settings → Devices & Services.
+On **older HA**, search HACS for **MeteoSwiss Radar**, install, restart HA,
+then add the integration under **Settings → Devices & services**. The existing
+[repository shortcut](https://my.home-assistant.io/redirect/hacs_repository/?owner=chriguschneider&repository=hass-meteoswiss-radar&category=integration)
+continues to work with Marketplace.
+
+Existing HACS repositories migrate automatically on HA 2026.11; do not reinstall
+HACS or recreate the radar entry. If custom registration is needed, use
+**Settings → Marketplace → Add from link** with the intended repository URL
+(GitHub connection required; choose **Integration** only if type detection asks).
+On older HA use **HACS → three-dot menu → Custom repositories** instead.
+See the [official Marketplace guide](https://www.home-assistant.io/integrations/marketplace/).
+
+**Updates still require a restart:** on HA 2026.11+ install the offered update
+under **Settings → Updates**, then follow the restart repair. Keep the existing
+integration entry. Reload the browser to load the updated bundled card.
 
 Finally, drop the card on a dashboard:
 
@@ -77,12 +98,14 @@ because the integration serves the card as a frontend resource.
 
 ### "Custom element doesn't exist: meteoswiss-radar-card"
 
-The card ships inside the integration, so HACS alone doesn't make it appear.
+The card ships inside the integration; installing files through Marketplace/HACS
+alone does not register it. Complete the integration setup first.
 Check, in order:
 
-1. **Restarted** Home Assistant after the HACS download.
+1. **Completed the required restart** after an update or an older HACS download.
+   A first Marketplace install on HA 2026.11+ normally loads without a restart.
 2. **Added the integration** under Settings → Devices & Services → Add
-   integration → *MeteoSwiss Radar*. Downloading it in HACS is not enough; the
+   integration → *MeteoSwiss Radar*. Installing files alone is not enough; the
    card is only registered once the integration is set up.
 3. **Reloaded the browser tab.** Home Assistant adds the card to the page when
    the page loads, so a tab that was open while you added the integration
