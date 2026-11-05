@@ -68,7 +68,7 @@ On **HA 2026.11+**:
 3. If setup does not open, add **MeteoSwiss Radar** under
    **Settings → Devices & services → Add integration**.
 
-On **older HA**, search **HACS** for **MeteoSwiss Radar**, install, restart HA,
+On **older HA**, search HACS for **MeteoSwiss Radar**, install, restart HA,
 then add the integration under **Settings → Devices & services**. The existing
 [repository shortcut](https://my.home-assistant.io/redirect/hacs_repository/?owner=chriguschneider&repository=hass-meteoswiss-radar&category=integration)
 continues to work with Marketplace.
