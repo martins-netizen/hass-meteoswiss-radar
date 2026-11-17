@@ -29,7 +29,7 @@
               "rain_threshold_mm_h": "Seuil de pluie"
             },
             "data_description": {
-              "rain_threshold_mm_h": "Par défaut, 1 mm/h ignore la bande radar la plus faible. 0 l’inclut pour les stores sensibles et peut provoquer de fausses alertes. La limite inférieure de chaque bande fait foi."
+              "rain_threshold_mm_h": "1 mm/h ignore la bande radar la plus faible (réglage standard) ; 0 l’inclut et peut provoquer de fausses alertes. Une valeur personnalisée existante reste modifiable. Les valeurs plus élevées excluent davantage de pluie."
             }
           },
           "rain_protection": {
@@ -53,6 +53,14 @@
             }
           }
         }
+      }
+    }
+  },
+  "selector": {
+    "rain_threshold_mm_h": {
+      "options": {
+        "1": "1 mm/h — standard",
+        "0": "0 mm/h — inclure la bande radar la plus faible"
       }
     }
   },

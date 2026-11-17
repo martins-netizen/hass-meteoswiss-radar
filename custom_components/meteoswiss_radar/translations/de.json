@@ -29,7 +29,7 @@
               "rain_threshold_mm_h": "Regenschwelle"
             },
             "data_description": {
-              "rain_threshold_mm_h": "Standard 1 mm/h ignoriert die schwächste Radarstufe. 0 schliesst sie für empfindliche Markisen ein und kann Fehlalarme auslösen. Massgebend ist die Untergrenze jeder Stufe."
+              "rain_threshold_mm_h": "1 mm/h ignoriert die schwächste Radarstufe (Standard); 0 schliesst sie ein und kann Fehlalarme auslösen. Ein bestehender eigener Wert bleibt bearbeitbar. Höhere Werte schliessen mehr Regen aus."
             }
           },
           "rain_protection": {
@@ -53,6 +53,14 @@
             }
           }
         }
+      }
+    }
+  },
+  "selector": {
+    "rain_threshold_mm_h": {
+      "options": {
+        "1": "1 mm/h — Standard",
+        "0": "0 mm/h — schwächste Radarstufe einschliessen"
       }
     }
   },

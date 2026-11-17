@@ -4,7 +4,7 @@
 > [chriguschneider/hass-meteoswiss-radar](https://github.com/chriguschneider/hass-meteoswiss-radar).
 > The installation and release information below describes upstream.
 > See [fork maintenance](docs/fork-maintenance.md) for this fork's baseline,
-> separate rain-threshold feature and workflow policies.
+> rain-threshold compatibility and workflow policies.
 
 <p align="center"><em>The app's radar, on your dashboard.</em></p>
 
@@ -138,9 +138,12 @@ The card editor stays English.
 For automations the integration can also evaluate the radar at your Home
 Assistant location. It is off by default: switch it on under Settings → Devices
 & services → MeteoSwiss Radar → Configure. The options dialog has the toggle
-*Rain sensors for my home* and two headed sections: *Rain protection: smooth
-out flapping* with *Minimum on-time* (minutes, default 30, 0 disables) and
-*Next rain beyond 2 hours* with *Weather entity for the hourly forecast*.
+*Rain sensors for my home* and three headed sections: *Radar rain detection*
+with the standard 0/1 mm/h choices, *Rain protection: smooth out flapping*
+with *Minimum on-time* (minutes, default 30, 0 disables), and *Next rain beyond
+2 hours* with *Weather entity for the hourly forecast*. Existing custom rain
+thresholds from this fork stay unchanged and editable; see
+[Rain threshold](LOCAL_NOWCAST.md#radar-rain-threshold).
 
 Beyond the radar's own horizon, *Next rain* can read the hourly forecast of a
 `weather.*` entity. Pick one as the weather entity, and for

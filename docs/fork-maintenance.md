@@ -7,18 +7,32 @@ upstream. It does not publish releases automatically.
 
 ## Synchronization baseline
 
+This synchronization imports upstream `master` at
+`80cc7969c525456c20a7816e5ab81110bfc83ddd`, including the v0.17.0 runtime
+and the subsequent upstream maintenance commits. The fork parent is
+`08ef3ceb5503d10539c581649f66048966ee1696`, including the weather-source
+readiness fix from
+[PR #10](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/10).
+The local source version follows upstream's 0.17.0 metadata; this import does
+not itself publish a fork release or install anything in Home Assistant.
+
 [PR #7](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/7)
-imported upstream `master` at
+previously imported upstream `master` at
 `82f4ba065ff65ea7d241c3ff05be9965cbddf546` (including v0.16.0).
 Before that synchronization, the fork's `master` was based on v0.14.0.
 The merge retained upstream ancestry and the fixes from PRs #5 and #6.
 
-This branch also includes the configurable rain threshold reviewed in
+The fork retains the configurable rain threshold reviewed in
 [PR #4](https://github.com/martins-netizen/hass-meteoswiss-radar/pull/4),
-now based on the synchronized `master`. It preserves upstream's nowcast,
-minimum protection hold, weather-entity display forecast and diagnostics.
-The threshold defaults to 1 mm/h; selecting 0 explicitly includes the weakest
-recognized band (ADR-0011). See [LOCAL_NOWCAST.md](../LOCAL_NOWCAST.md).
+with upstream's translated 0/1 selector for standard settings. Existing valid
+custom numeric thresholds from 0 to 60 mm/h remain unchanged and editable;
+setup, reload and saving other options must not silently replace them with 1.
+The dated amendment to ADR-0011 records that compatibility rule. The default
+is still 1 mm/h; selecting 0 explicitly includes the weakest recognized band.
+The upstream card-startup recovery and the fork's separate weather-source
+readiness guard both remain in place. Nowcast protection, minimum hold,
+weather-entity display forecasts and diagnostics keep their existing roles.
+See [LOCAL_NOWCAST.md](../LOCAL_NOWCAST.md).
 
 ## Review each upstream merge
 
@@ -38,15 +52,20 @@ recognized band (ADR-0011). See [LOCAL_NOWCAST.md](../LOCAL_NOWCAST.md).
 
 Do this review before starting a new feature or preparing an installation.
 Importing upstream code, tagging a release and installing it in Home Assistant
-are separate actions. PR #7 alone does not include the configurable threshold;
-an instance using that feature needs the combined, verified source from PR #4
-rather than the synchronization commit by itself.
+are separate actions. Before an installation, read the current stored rain
+threshold and other protection options, and verify that the prepared package
+preserves them. A historical diagnostics report is not a live configuration
+check. Use the combined verified fork source, including its readiness and
+threshold compatibility fixes, rather than an earlier synchronization commit
+or the upstream release alone.
 
 ## Existing fork policies to preserve
 
 - Keep only `ci.yml` and `codeql.yml` enabled. The fork deliberately removed
   inherited agent, release, smoke-test and CI-based Sonar workflows. Do not
-  restore them or introduce issue-writing CI-watch automation during a sync.
+  restore them or introduce issue-writing CI-watch or badge-publishing
+  automation during a sync. Keep the existing README badge sources; do not
+  assume a fork `badges` branch is populated by an enabled workflow.
   Upstream documentation and ADRs still describe those upstream services;
   this section describes the fork's actual deployment.
 - Keep CI permissions, timeouts, disabled persisted checkout credentials,
