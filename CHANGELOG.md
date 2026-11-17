@@ -16,6 +16,10 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ### Fixed
 
+- Skip hourly forecast calls while the weather service is not ready or the
+  configured weather entity is missing, unavailable or only restored during
+  startup. Keep the radar result and retry on the next regular refresh.
+  Requires restart.
 - Synchronize this maintenance fork with upstream v0.16.0, including the local
   nowcast and protection logic documented below, while retaining fork-specific
   tooling and error handling. Requires restart.
