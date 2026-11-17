@@ -532,7 +532,7 @@ def protection_min_hold_minutes(entry: ConfigEntry) -> int:
 
 
 def rain_threshold_mm_h(entry: ConfigEntry) -> float:
-    """Resolve the radar threshold; keep the released default on invalid input."""
+    """Keep valid existing fork thresholds; use the default on invalid input."""
     options = getattr(entry, "options", None)
     stored = options.get(OPT_RAIN_THRESHOLD) if isinstance(options, Mapping) else None
     if (

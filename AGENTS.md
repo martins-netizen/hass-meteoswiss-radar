@@ -204,9 +204,13 @@ The card is one file; card issues collide if edited in parallel. Split
 lanes as card-JS / proxy-Python / nowcast-Python / tests, one worktree
 each.
 
-### Release procedure
+### Upstream release procedure
 
-Releases are automated via tag push and a CI workflow (`.github/workflows/release.yml`),
+This describes upstream automation. This maintenance fork intentionally has
+no release workflow; see `docs/fork-maintenance.md` before preparing a fork
+release or installation.
+
+Upstream releases are automated via tag push and a CI workflow (`.github/workflows/release.yml`),
 which implements ADR-0004. The process:
 
 1. **Update version and changelog**: bump the version in
@@ -252,17 +256,20 @@ sessions; unattended CI runs deny `gh release`, `gh issue edit` and
 
 Exactly what `.github/workflows/ci.yml` runs:
 
-- **Card decoder**: `npm ci` once, then `npm test` (vitest). The pure
+- **Card decoder**: `npm ci --ignore-scripts` once, then `npm test` (vitest). The pure
   decoder functions are loaded out of the shipped card via a vm shim, so
   tests hit the real code without a build step. Golden geometry is
   snapshotted; regenerate with `npm test -- -u` only after verifying
   against live data.
 - **Card syntax**: `npm run check` (`node --check`).
-- **Integration metadata and nowcast core**: `pip install ruff pytest`,
-  then `pytest -q` (stdlib only, no HA; `tests/stubs_ha.py` stands in for
-  the HA modules). Full proxy behavior tests against
+- **Integration metadata and nowcast core**: install the hash-pinned tools with
+  `python -m pip install --only-binary=:all: --require-hashes -r .github/requirements-ci.txt`,
+  then `pytest -q -k "not test_zip_release_asset_is_wired_end_to_end"`
+  (stdlib only, no HA; `tests/stubs_ha.py` stands in for the HA modules).
+  The single deselection reflects the deliberately absent fork release workflow;
+  runtime tests are not excluded. Full proxy behavior tests against
   `pytest-homeassistant-custom-component` are tracked as a separate issue.
-- **Lint**: `ruff check custom_components tests`.
+- **Lint**: `ruff check custom_components tests scripts/generate_brands_icon.py`.
 - **Never hit the network in tests.** Upstream data comes from trimmed
   real files in `tests/fixtures/`; the live API is only for
   `tests/tools/smoke_test.py`. There is no `tests/README.md` inventory
@@ -293,11 +300,10 @@ Lessons from real integrations; several shipped with every test green.
 - **Never block the event loop.** No synchronous I/O, and no parsing of big
   CSV/JSON payloads on the loop: `await hass.async_add_executor_job(parse,
   payload)`. HA logs "Detected blocking call" and the whole UI stalls.
-- **No secrets or location in what users post.** This integration has no
-  `diagnostics.py` yet; if one is added, everything in it goes through
-  `async_redact_data` (coordinates, the home location, tokens), with a
-  test that proves it. Debug logs must not print the home coordinates
-  either.
+- **No secrets or location in what users post.** Preserve the existing
+  redaction in `diagnostics.py` and its regression tests. New diagnostics
+  fields must not expose coordinates, the home location or tokens. Debug
+  logs must not print the home coordinates either.
 
 ### Upstream smoke test
 

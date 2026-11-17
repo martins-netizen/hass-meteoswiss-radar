@@ -126,17 +126,31 @@ estimate when conditions are expected to be dry again.
 ## Radar rain threshold
 
 Under *Configure → Radar rain detection*, **Rain threshold** controls which
-precipitation bands count as rain. The default stays **1 mm/h**, including
-on upgrade. Set **0 mm/h** to include the weakest classified precipitation
-band (currently 0-1 mm/h), for example for a sensitive awning. This does not
-make empty, dry areas wet or turn unrecognisable colours into rain.
+precipitation bands count as rain. The standard choices are:
+
+- **1 mm/h — standard:** ignore the weakest radar band. This is the default
+  when no valid threshold has been saved.
+- **0 mm/h — include the weakest band:** include the weakest classified
+  precipitation band (currently 0-1 mm/h), for example for a sensitive awning.
+
+Neither choice makes empty, dry areas wet or turns unrecognisable colours
+into rain.
 
 The value is an **intensity in mm/h**, not an accumulated rainfall amount.
 Radar contours carry ranges, not exact intensities: a band counts only when
 its **lower bound** is at least the threshold. A threshold between 0 and 1
-therefore still excludes the entire 0-1 band; it cannot select part of that
-band. The number field accepts 0-60 mm/h, up to the highest band's lower
-bound documented in `FORMAT.md`; the manifest remains the source of the bands.
+still excludes the entire 0-1 band; it cannot select part of that band.
+The manifest remains the source of the bands documented in `FORMAT.md`.
+
+**Existing custom thresholds in this fork are preserved.** A previously saved
+finite numeric value from 0 to 60 mm/h stays unchanged on update, setup,
+reload and when saving other options. If that value is neither 0 nor 1, the
+options dialog keeps the previous number field with the exact value. Higher
+thresholds exclude more rain and may miss rain that should trigger protection.
+You can explicitly change the value to 0 or 1; the next visit then uses the
+standard two-choice selector. New entries and entries already using 0 or 1
+offer only those standard choices. No automatic migration changes an existing
+valid setting.
 
 Including weak echoes can cause false alarms: precipitation aloft may
 evaporate before reaching the ground, and ground clutter can resemble rain.
@@ -145,10 +159,12 @@ every drop. The threshold applies to all radar-derived values, including
 the measured state, near-term protection and radar-based *Next rain*.
 The hourly weather forecast keeps its separate 0.1 mm / 50 % thresholds.
 
-Saving reloads the entry and applies the value. The active threshold appears
-in downloaded diagnostics under `nowcast.rain_threshold_mm_h`. The 30-minute
-warning window, dry-window confirmation and minimum on-time keep their
-existing behaviour. Missing or invalid stored values use 1 mm/h.
+Saving options reloads the entry and applies the choice without a Home
+Assistant restart. Installing changed integration code still requires a
+restart. The active threshold appears in downloaded diagnostics under
+`nowcast.rain_threshold_mm_h`. The 30-minute warning window, dry-window
+confirmation and minimum on-time keep their existing behaviour. Missing,
+non-numeric, boolean, non-finite or out-of-range stored values use 1 mm/h.
 
 ## Seeing further than the radar
 

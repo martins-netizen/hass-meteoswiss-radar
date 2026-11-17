@@ -12,6 +12,9 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 from homeassistant.config_entries import (
     ConfigEntry,
@@ -105,22 +108,7 @@ class MeteoSwissRadarOptionsFlow(OptionsFlow):
                         default=nowcast_entities_enabled(self.hass, entry),
                     ): bool,
                     vol.Required(SECTION_DETECTION): section(
-                        vol.Schema(
-                            {
-                                vol.Required(
-                                    OPT_RAIN_THRESHOLD,
-                                    default=rain_threshold_mm_h(entry),
-                                ): NumberSelector(
-                                    NumberSelectorConfig(
-                                        min=0,
-                                        max=MAX_RAIN_THRESHOLD_MM_H,
-                                        step=0.1,
-                                        unit_of_measurement="mm/h",
-                                        mode=NumberSelectorMode.BOX,
-                                    )
-                                ),
-                            }
-                        ),
+                        _rain_threshold_schema(rain_threshold_mm_h(entry)),
                         {"collapsed": False},
                     ),
                     vol.Required(SECTION_PROTECTION): section(
@@ -160,12 +148,46 @@ class MeteoSwissRadarOptionsFlow(OptionsFlow):
         )
 
 
+def _rain_threshold_schema(threshold: float) -> vol.Schema:
+    """Offer standard choices without replacing a valid legacy fork setting."""
+    default: str | float
+    selector: SelectSelector | NumberSelector
+    if threshold in (0, 1):
+        default = str(int(threshold))
+        selector = SelectSelector(
+            SelectSelectorConfig(
+                options=["1", "0"],
+                translation_key=OPT_RAIN_THRESHOLD,
+                mode=SelectSelectorMode.LIST,
+                custom_value=False,
+                multiple=False,
+            )
+        )
+    else:
+        # The fork previously accepted 0..60. Keep an existing choice visible
+        # and editable so saving another option cannot silently change it.
+        # Arbitrary precision must remain valid in the browser's number input.
+        default = threshold
+        selector = NumberSelector(
+            NumberSelectorConfig(
+                min=0,
+                max=MAX_RAIN_THRESHOLD_MM_H,
+                step="any",
+                unit_of_measurement="mm/h",
+                mode=NumberSelectorMode.BOX,
+            )
+        )
+    return vol.Schema({vol.Required(OPT_RAIN_THRESHOLD, default=default): selector})
+
+
 def _flatten(user_input: dict[str, Any]) -> dict[str, Any]:
     """Lift the section values back to the flat option keys.
 
     The number selector submits a float; `protection_min_hold_minutes` rejects
     anything but an int and would silently fall back to the default, so the
-    hold is stored as an int here.
+    hold is stored as an int here. The threshold select submits a string;
+    store its two choices numerically to preserve the existing option type.
+    Legacy thresholds from the numeric editor already have the correct type.
     """
     options: dict[str, Any] = {}
     for key, value in user_input.items():
@@ -178,4 +200,7 @@ def _flatten(user_input: dict[str, Any]) -> dict[str, Any]:
     hold = options.get(OPT_PROTECTION_MIN_HOLD)
     if isinstance(hold, float) and hold.is_integer():
         options[OPT_PROTECTION_MIN_HOLD] = int(hold)
+    threshold = options.get(OPT_RAIN_THRESHOLD)
+    if isinstance(threshold, str) and threshold in ("0", "1"):
+        options[OPT_RAIN_THRESHOLD] = float(threshold)
     return options

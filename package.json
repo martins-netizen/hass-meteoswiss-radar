@@ -1,6 +1,6 @@
 {
   "name": "hass-meteoswiss-radar-card",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "type": "module",
   "description": "Tests and syntax checks for the MeteoSwiss Radar Lovelace card.",
@@ -11,7 +11,7 @@
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "5.0.3",
-    "vitest": "5.0.3"
+    "@vitest/coverage-v8": "5.1.0",
+    "vitest": "5.1.0"
   }
 }

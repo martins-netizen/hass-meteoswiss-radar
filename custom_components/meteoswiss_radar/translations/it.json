@@ -29,7 +29,7 @@
               "rain_threshold_mm_h": "Soglia di pioggia"
             },
             "data_description": {
-              "rain_threshold_mm_h": "Il valore predefinito di 1 mm/h ignora la fascia radar più debole. 0 la include per tende sensibili e può causare falsi allarmi. Conta il limite inferiore di ogni fascia."
+              "rain_threshold_mm_h": "1 mm/h ignora la fascia radar più debole (impostazione standard); 0 la include e può causare falsi allarmi. Un valore personalizzato esistente resta modificabile. Valori più alti escludono più pioggia."
             }
           },
           "rain_protection": {
@@ -53,6 +53,14 @@
             }
           }
         }
+      }
+    }
+  },
+  "selector": {
+    "rain_threshold_mm_h": {
+      "options": {
+        "1": "1 mm/h — standard",
+        "0": "0 mm/h — includi la fascia radar più debole"
       }
     }
   },

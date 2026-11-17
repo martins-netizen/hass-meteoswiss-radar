@@ -29,7 +29,7 @@
               "rain_threshold_mm_h": "Rain threshold"
             },
             "data_description": {
-              "rain_threshold_mm_h": "Default 1 mm/h ignores the weakest radar band. 0 includes it for sensitive awnings and may cause false alarms. Bands are selected by their lower limit."
+              "rain_threshold_mm_h": "1 mm/h ignores the weakest radar band (standard); 0 includes it and may cause false alarms. An existing custom value stays editable. Higher values exclude more rain."
             }
           },
           "rain_protection": {
@@ -53,6 +53,14 @@
             }
           }
         }
+      }
+    }
+  },
+  "selector": {
+    "rain_threshold_mm_h": {
+      "options": {
+        "1": "1 mm/h — standard",
+        "0": "0 mm/h — include the weakest radar band"
       }
     }
   },

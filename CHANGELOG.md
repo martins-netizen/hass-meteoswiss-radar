@@ -8,11 +8,12 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- A configurable radar rain threshold under *Configure → Radar rain detection*.
-  The default remains 1 mm/h; 0 includes the weakest precipitation band for
-  sensitive awnings, with a higher risk of false alarms. Requires restart
+- Use the translated 0/1 mm/h choices under *Configure → Radar rain detection*
+  for standard settings. Existing custom thresholds from this fork remain
+  unchanged on update, reload and other options edits, with their numeric
+  editor still available. Requires restart.
 
 ### Fixed
 
@@ -20,9 +21,9 @@ the two existing tags (`0.7.6`, `0.8.0`) keep their original form.
   configured weather entity is missing, unavailable or only restored during
   startup. Keep the radar result and retry on the next regular refresh.
   Requires restart.
-- Synchronize this maintenance fork with upstream v0.16.0, including the local
-  nowcast and protection logic documented below, while retaining fork-specific
-  tooling and error handling. Requires restart.
+- Synchronize this maintenance fork with upstream v0.17.0, including recovery
+  when the radar card fails early during startup, while retaining fork-specific
+  tooling, error handling and weather-source readiness checks. Requires restart.
 - Handle rejected radar-card initialization and custom-element registration
   without unhandled Promise rejections. Simplify config-entry setup while
   preserving successful setup and reload behavior. Requires restart.
@@ -38,6 +39,23 @@ Under the hood: use Bash conditional expressions in the optional issue selector.
   disable npm installation hooks, and require explicit icon replacement while
   rejecting parent-traversal and symlink outputs. Developer tooling only; no
   Home Assistant restart or integration update required.
+
+## [v0.17.0] — 2026-10-27
+
+### Added
+
+- A choice of 0 or 1 mm/h under *Configure → Radar rain detection*.
+  The default remains 1 mm/h; 0 includes the weakest precipitation band for
+  sensitive awnings, with a higher risk of false alarms. Saving applies the
+  choice by reloading the entry.
+
+### Fixed
+
+- The radar card no longer stays blank for good if it fails while starting up;
+  it shows the error and tries again on the next update. Frontend only
+  (browser reload).
+- Handle unexpected radar-card initialization and element-registration failures
+  without unhandled Promise rejections. Frontend only (browser reload).
 
 ## [v0.16.0] — 2026-10-21
 
@@ -336,7 +354,8 @@ and test improvements from the 2026-08-22 architecture review.
   for the card decoder (#16); full proxy allowlist, cache-header, and
   lifecycle coverage (#17)
 
-[Unreleased]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.17.0...HEAD
+[v0.17.0]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.16.0...v0.17.0
 [v0.16.0]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.15.0...v0.16.0
 [v0.15.0]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/chriguschneider/hass-meteoswiss-radar/compare/v0.13.0...v0.14.0
